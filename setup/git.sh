@@ -19,10 +19,19 @@ else
 fi
 
 # Get the full name of the current user
-FULL_NAME=$(id -F)
+if ! FULL_NAME=$(id -F 2>/dev/null) || [ -z "$FULL_NAME" ]; then
+    # Fallback to gecos field or prompt user
+    FULL_NAME=$(getent passwd "$USER" | cut -d: -f5 | cut -d, -f1)
+    if [ -z "$FULL_NAME" ]; then
+        read -rp "Enter your full name: " FULL_NAME
+    fi
+fi
 
 # Get the username of the current user
-USERNAME=$(whoami)
+if ! USERNAME=$(whoami); then
+    echo "Error: Failed to get username" >&2
+    exit 1
+fi
 
 # Default email domain
 DEFAULT_DOMAIN="evolution.com"
