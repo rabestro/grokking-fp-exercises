@@ -1,7 +1,22 @@
 #!/bin/bash
+set -euo pipefail
+
+# Check if Homebrew is installed
+if ! command -v brew >/dev/null 2>&1; then
+    echo "Error: Homebrew is not installed" >&2
+    exit 1
+fi
 
 # Install git
-brew install git
+if ! command -v git >/dev/null 2>&1; then
+    echo "Installing Git..."
+    if ! brew install git; then
+        echo "Error: Failed to install Git" >&2
+        exit 1
+    fi
+else
+    echo "Git is already installed"
+fi
 
 # Get the full name of the current user
 FULL_NAME=$(id -F)
