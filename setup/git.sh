@@ -24,8 +24,26 @@ FULL_NAME=$(id -F)
 # Get the username of the current user
 USERNAME=$(whoami)
 
+# Default email domain
+DEFAULT_DOMAIN="evolution.com"
+
+# Allow override through environment variable
+DOMAIN="${GIT_EMAIL_DOMAIN:-$DEFAULT_DOMAIN}"
+
 # Construct the email address
-EMAIL="$USERNAME@evolution.com"
+if [ -n "${GIT_EMAIL:-}" ]; then
+    EMAIL="$GIT_EMAIL"
+else
+    EMAIL="$USERNAME@$DOMAIN"
+    echo "Using default email: $EMAIL"
+    echo "To use a different email, set GIT_EMAIL environment variable"
+fi
+
+# Validate email format
+if ! echo "$EMAIL" | grep -qE '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'; then
+    echo "Error: Invalid email format: $EMAIL" >&2
+    exit 1
+fi
 
 # Configure Git with the full name
 git config --global user.name "$FULL_NAME"
