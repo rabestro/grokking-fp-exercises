@@ -6,7 +6,7 @@ import org.scalatest.matchers.should.Matchers
 class FirstTwoSpec extends AnyFunSuite with Matchers {
 
   test("firstTwo should return an empty list when the input list is empty") {
-    Solution.firstTwo(List()) shouldBe List()
+    Solution.firstTwo(Nil) shouldBe Nil
   }
 
   test("firstTwo should return the same list when the input list has less than two elements") {
