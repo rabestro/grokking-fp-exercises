@@ -3,7 +3,7 @@ package chapter03
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
 
-class insertBeforeLastSpec extends AnyFunSuite with Matchers {
+class InsertBeforeLastSpec extends AnyFunSuite with Matchers {
 
   test("insertBeforeLast should return a list with the element as the only element if the input list is empty") {
     Solution.insertBeforeLast(List(), "NewElement") shouldBe List("NewElement")

@@ -3,7 +3,7 @@ package chapter03
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
 
-class lastTwoSpec extends AnyFunSuite with Matchers {
+class LastTwoSpec extends AnyFunSuite with Matchers {
 
   test("lastTwo should return an empty list when the input list is empty") {
     Solution.lastTwo(List()) shouldBe List()

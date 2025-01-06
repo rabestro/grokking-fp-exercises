@@ -3,7 +3,7 @@ package chapter03
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
 
-class movedFirstTwoToTheEndSpec extends AnyFunSuite with Matchers {
+class MovedFirstTwoToTheEndSpec extends AnyFunSuite with Matchers {
 
   test("movedFirstTwoToTheEnd should return an empty list when the input list is empty") {
     Solution.movedFirstTwoToTheEnd(List()) shouldBe List()
