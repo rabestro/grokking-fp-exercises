@@ -8,9 +8,8 @@ object Solution {
     list.slice(list.size - 2, list.size)
 
   def movedFirstTwoToTheEnd(list: List[String]): List[String] =
-    val firstTwo = list.slice(0, 2)
-    val withoutFirstTwo = list.slice(2, list.size)
-    withoutFirstTwo.appendedAll(firstTwo)
+    val (firstTwo, withoutFirstTwo) = list splitAt 2
+    withoutFirstTwo ::: firstTwo
 
   def insertBeforeLast(list: List[String], element: String): List[String] =
     if list.isEmpty then 
