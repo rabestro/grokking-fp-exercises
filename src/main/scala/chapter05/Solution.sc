@@ -1,6 +1,6 @@
 // Practicing nested flatMaps (page 147)
 
-case class Point(x: Int, y: Int)
+final case class Point(x: Int, y: Int)
 
 List(1).flatMap(x =>
   List(-2, 7).map(y =>
