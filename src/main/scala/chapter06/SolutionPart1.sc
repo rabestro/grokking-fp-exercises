@@ -22,9 +22,9 @@ def extractYearEnd(rawShow: String): Option[Int] = {
   val dash = rawShow.indexOf('-')
   val bracketClose = rawShow.indexOf(')')
   for {
-    yearStr <- if (dash != -1 && bracketClose > dash + 1)
-      Some(rawShow.substring(dash + 1, bracketClose))
-    else None
+    yearStr <- Option.when(dash != -1 && bracketClose > dash + 1) {
+      rawShow.substring(bracketClose + 1, dash)
+    }
     year <- yearStr.toIntOption
   } yield year
 }
