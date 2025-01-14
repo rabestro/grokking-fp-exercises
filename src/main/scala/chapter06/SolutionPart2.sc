@@ -12,9 +12,11 @@ def extractYearEnd(rawShow: String): Either[String, Int] = {
   val dash = rawShow.indexOf('-')
   val bracketClose = rawShow.indexOf(')')
   for {
-    yearStr <- if (dash != -1 && bracketClose > dash + 1)
-      Right(rawShow.substring(dash + 1, bracketClose))
-    else Left(s"Can't extract end year from $rawShow")
+    yearStr <- Either.cond(
+      dash != -1 && bracketClose > dash + 1,
+      rawShow.substring(dash + 1, bracketClose),
+      s"Can't extract end year from $rawShow"
+    )
     year <- yearStr.toIntOption.toRight(s"Can't parse $yearStr")
   } yield year
 }
