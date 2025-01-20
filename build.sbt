@@ -11,7 +11,7 @@ lazy val root = (project in file("."))
     name := "grokking-fp-exercises",
     libraryDependencies ++= Seq(
       scalaTest % Test,
-      catsEffect
+      catsEffect, stream
     )
   )
 
