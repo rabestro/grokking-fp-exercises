@@ -1,6 +1,5 @@
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import chapter08.ch08_CardGame.castTheDie
 import chapter08.ch08_CastingDieImpure.NoFailures.castTheDieImpure
 import fs2.{Pure, Stream}
 
