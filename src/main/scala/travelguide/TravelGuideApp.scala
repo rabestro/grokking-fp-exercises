@@ -7,7 +7,7 @@ import org.apache.jena.query.{QueryExecution, QueryFactory, QuerySolution}
 import org.apache.jena.rdfconnection.{RDFConnection, RDFConnectionRemote}
 import travelguide.AppRunner.runWithTiming
 import travelguide.BusinessDomain.PopCultureSubject.{Artist, Movie}
-import travelguide.BusinessDomain.{Attraction, Location, LocationId, TravelGuide}
+import travelguide.BusinessDomain.{Attraction, LocationId, TravelGuide}
 import travelguide.WikidataDataAccess.getSparqlDataAccess
 
 import scala.concurrent.duration.*
@@ -47,89 +47,6 @@ object TravelGuideApp {
         }
       } yield guide
     }
-  }
-
-  /** STEP 4: implementing real data access
-   *
-   * @see [[ch11_QueryingWikidata]] for a simple Wikidata query using Apache Jena imperatively
-   */
-  private def runStep4 = {
-    val getConnection: IO[RDFConnection] = IO.delay(
-      RDFConnectionRemote.create // we will make it better, see at the end
-        .destination("https://query.wikidata.org/")
-        .queryEndpoint("sparql")
-        .build
-    )
-
-    def execQuery(getConnection: IO[RDFConnection], query: String): IO[List[QuerySolution]] = {
-      getConnection.flatMap(c =>
-        IO.delay(
-          asScala(c.query(QueryFactory.create(query)).execSelect()).toList
-        )
-      )
-    }
-
-    def parseAttraction(s: QuerySolution): IO[Attraction] = {
-      IO.delay(
-        Attraction(
-          name = s.getLiteral("attractionLabel").getString,
-          description = if (s.contains("description")) Some(s.getLiteral("description").getString) else None,
-          location = Location(
-            id = LocationId(s.getResource("location").getLocalName),
-            name = s.getLiteral("locationLabel").getString,
-            population = s.getLiteral("population").getInt
-          )
-        )
-      )
-    }
-
-    def findAttractions(name: String, ordering: AttractionOrdering, limit: Int): IO[List[Attraction]] = {
-      val orderBy = ordering match {
-        case ByName => "?attractionLabel"
-        case ByLocationPopulation => "DESC(?population)"
-      }
-
-      val query =
-        s"""
-                     PREFIX wd: <http://www.wikidata.org/entity/>
-                     PREFIX wdt: <http://www.wikidata.org/prop/direct/>
-                     PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-                     PREFIX schema: <http://schema.org/>
-                     SELECT DISTINCT ?attraction ?attractionLabel ?description ?location ?locationLabel ?population WHERE {
-                       ?attraction wdt:P31 wd:Q570116;
-                                   rdfs:label ?attractionLabel;
-                                   wdt:P131 ?location.
-                       FILTER(LANG(?attractionLabel) = "en").
-                     
-                       OPTIONAL {
-                         ?attraction schema:description ?description.
-                         FILTER(LANG(?description) = "en").
-                       }
-                     
-                       ?location wdt:P1082 ?population;
-                                 rdfs:label ?locationLabel;
-                       FILTER(LANG(?locationLabel) = "en").
-                     
-                       FILTER(CONTAINS(?attractionLabel, "$name")).
-                     } ORDER BY $orderBy LIMIT $limit
-                     """
-
-      for {
-        solutions <- execQuery(getConnection, query)
-        attractions <- solutions.traverse(parseAttraction) // or map(parseAttraction).sequence
-      } yield attractions
-    }
-
-    /** @see [[WikidataDataAccess]] for a Wikidata Sparql endpoint implementation using Apache Jena
-     *       and final version of all DataAccess functions
-     */
-
-    assert(
-      findAttractions("Bridge of Sighs", ByLocationPopulation, 1).unsafeRunSync().map(_.name) == List("Bridge of Sighs")
-    )
-
-    // connection.close() // PROBLEM we are not able to close each connection used by the getConnection clients
-    // and we can't pass connection directly because it's a mutable, stateful value
   }
 
   /** STEP 6: searching for the best travel guide
