@@ -5,7 +5,7 @@ import cats.effect.{IO, Ref, Resource}
 import cats.implicits.*
 import org.apache.jena.query.{QueryExecution, QueryFactory, QuerySolution}
 import org.apache.jena.rdfconnection.{RDFConnection, RDFConnectionRemote}
-import travelguide.AppRunner.unsafeRunTimedIO
+import travelguide.AppRunner.runWithTiming
 import travelguide.BusinessDomain.PopCultureSubject.{Artist, Movie}
 import travelguide.BusinessDomain.{Attraction, Location, LocationId, TravelGuide}
 import travelguide.WikidataDataAccess.getSparqlDataAccess
@@ -171,7 +171,7 @@ object TravelGuideApp {
     val wikidata = getSparqlDataAccess(execQuery(connection))
 
     // now we can execute our program using the real Wikidata data access!
-    AppRunner.unsafeRunTimedIO(Version1.travelGuide(wikidata, "Yosemite"))
+    AppRunner.runWithTiming(Version1.travelGuide(wikidata, "Yosemite"))
     // PROBLEM with Version1: for a very popular attraction, like "Yosemite", the returned TravelGuide doesn't contain any pop culture subjects
     // we only check the first result, even though there may be better choices and better locations with similar names
 
@@ -280,8 +280,8 @@ object TravelGuideApp {
       Version2.travelGuide(wikidata, "Yosemite") // this will not leak, even if there are errors
     })
 
-    unsafeRunTimedIO(program)
-    unsafeRunTimedIO(program) // you can execute it as many times as you want
+    runWithTiming(program)
+    runWithTiming(program) // you can execute it as many times as you want
   }
 
   // Resource has map!
@@ -290,7 +290,7 @@ object TravelGuideApp {
     connectionResource.map(connection => getSparqlDataAccess(execQuery(connection)))
 
   private def runVersion2WithMappedResource = {
-    unsafeRunTimedIO(dataAccessResource.use(dataAccess => Version2.travelGuide(dataAccess, "Yosemite")))
+    runWithTiming(dataAccessResource.use(dataAccess => Version2.travelGuide(dataAccess, "Yosemite")))
   }
 
   // PROBLEM: we make all queries sequentially, but we can make parallel queries in two attractions
@@ -317,7 +317,7 @@ object TravelGuideApp {
   }
 
   private def runVersion3 = {
-    unsafeRunTimedIO(
+    runWithTiming(
       dataAccessResource.use(dataAccess => Version3.travelGuide(dataAccess, "Yellowstone"))
     ) // this will take a lot less time than Version2!
   }
@@ -355,7 +355,7 @@ object TravelGuideApp {
     }).unsafeRunSync()
 
     // after:
-    unsafeRunTimedIO(
+    runWithTiming(
       connectionResource.use(connection =>
         for {
           cache <- Ref.of[IO, Map[String, List[QuerySolution]]](Map.empty)
@@ -372,7 +372,7 @@ object TravelGuideApp {
    * let's fail fast if requests take too long (timeout 30s)
    */
   private def runCachedVersionWithTimeouts = {
-    AppRunner.unsafeRunTimedIO(
+    AppRunner.runWithTiming(
       connectionResource.use(connection =>
         for {
           cache <- Ref.of[IO, Map[String, List[QuerySolution]]](Map.empty)

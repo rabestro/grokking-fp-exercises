@@ -26,7 +26,7 @@ object AppVersion3:
   }
   
   def main(args: Array[String]): Unit = {
-    AppRunner.unsafeRunTimedIO(
+    AppRunner.runWithTiming(
       dataAccessResource.use(dataAccess => travelGuide(dataAccess, "Yellowstone"))
     )
   }
