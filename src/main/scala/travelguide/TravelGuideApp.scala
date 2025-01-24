@@ -1,6 +1,5 @@
 package travelguide
 
-import cats.effect.unsafe.implicits.global
 import cats.effect.{IO, Ref, Resource}
 import org.apache.jena.query.{QueryExecution, QueryFactory, QuerySolution}
 import org.apache.jena.rdfconnection.{RDFConnection, RDFConnectionRemote}
@@ -9,7 +8,7 @@ import travelguide.WikidataDataAccess.getSparqlDataAccess
 
 import scala.jdk.javaapi.CollectionConverters.asScala
 
-object TravelGuideApp {
+object TravelGuideApp:
 
   private val connectionResource: Resource[IO, RDFConnection] = Resource.make(
     IO.blocking(
@@ -23,22 +22,6 @@ object TravelGuideApp {
     connectionResource.map(connection => getSparqlDataAccess(execQuery(connection)))
 
   def main(args: Array[String]): Unit = {
-    runCachedVersion
-  }
-
-  private def runCachedVersion = {
-    // Coffee Break
-    // before:
-    connectionResource.use(connection => {
-      val dataAccess = getSparqlDataAccess(execQuery(connection))
-      for {
-        result1 <- AppVersion3.travelGuide(dataAccess, "Yellowstone")
-        result2 <- AppVersion3.travelGuide(dataAccess, "Yellowstone")
-        result3 <- AppVersion3.travelGuide(dataAccess, "Yellowstone")
-      } yield result1.toList.appendedAll(result2).appendedAll(result3)
-    }).unsafeRunSync()
-
-    // after:
     runWithTiming(
       connectionResource.use(connection =>
         for {
@@ -83,13 +66,13 @@ object TravelGuideApp {
 
   /** STEP 7: handle resource leaks (query execution and connection)
    */
-  def createExecution(connection: RDFConnection, query: String): IO[QueryExecution] = IO.blocking(
+  private def createExecution(connection: RDFConnection, query: String): IO[QueryExecution] = IO.blocking(
     connection.query(QueryFactory.create(query))
   )
 
-  def closeExecution(execution: QueryExecution): IO[Unit] = IO.blocking(
+  private def closeExecution(execution: QueryExecution): IO[Unit] = IO.blocking(
     execution.close()
   )
 
   trait DataAccess extends dao.DataAccess
-}
+
