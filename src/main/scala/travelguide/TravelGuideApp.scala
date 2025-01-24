@@ -32,23 +32,6 @@ object TravelGuideApp {
     def findMoviesAboutLocation(locationId: LocationId, limit: Int): IO[List[Movie]]
   }
 
-  /** STEP 3: first version of a TravelGuide finder
-   */
-  object Version1 {
-    def travelGuide(data: DataAccess, attractionName: String): IO[Option[TravelGuide]] = {
-      for {
-        attractions <- data.findAttractions(attractionName, ByLocationPopulation, 1)
-        guide <- attractions.headOption match {
-          case None => IO.pure(None)
-          case Some(attraction) => for {
-            artists <- data.findArtistsFromLocation(attraction.location.id, 2)
-            movies <- data.findMoviesAboutLocation(attraction.location.id, 2)
-          } yield Some(TravelGuide(attraction, artists.appendedAll(movies)))
-        }
-      } yield guide
-    }
-  }
-
   /** STEP 6: searching for the best travel guide
    * requirements:
    * - 30 points for a description
@@ -78,21 +61,6 @@ object TravelGuideApp {
     descriptionScore + quantityScore + followersScore + boxOfficeScore
   }
 
-  object Version2 {
-    def travelGuide(data: DataAccess, attractionName: String): IO[Option[TravelGuide]] = {
-      for {
-        attractions <- data.findAttractions(attractionName, ByLocationPopulation, 3)
-        guides <- attractions
-          .map(attraction =>
-            for {
-              artists <- data.findArtistsFromLocation(attraction.location.id, 2)
-              movies <- data.findMoviesAboutLocation(attraction.location.id, 2)
-            } yield TravelGuide(attraction, artists.appendedAll(movies))
-          )
-          .sequence
-      } yield guides.sortBy(guideScore).reverse.headOption
-    }
-  }
   // PROBLEM: it may not work, because we are leaking closable resources (in this case query executions)
 
   /** STEP 7: handle resource leaks (query execution and connection)
@@ -123,24 +91,8 @@ object TravelGuideApp {
     )
   )(connection => IO.blocking(connection.close()))
 
-  private def runVersion2UsingResource = {
-    val program: IO[Option[TravelGuide]] = connectionResource.use(connection => {
-      val wikidata = getSparqlDataAccess(execQuery(connection))
-      Version2.travelGuide(wikidata, "Yosemite") // this will not leak, even if there are errors
-    })
-
-    runWithTiming(program)
-    runWithTiming(program) // you can execute it as many times as you want
-  }
-
-  // Resource has map!
-  val queryExecResource: Resource[IO, String => IO[List[QuerySolution]]] = connectionResource.map(execQuery)
   val dataAccessResource: Resource[IO, DataAccess] =
     connectionResource.map(connection => getSparqlDataAccess(execQuery(connection)))
-
-  private def runVersion2WithMappedResource = {
-    runWithTiming(dataAccessResource.use(dataAccess => Version2.travelGuide(dataAccess, "Yosemite")))
-  }
 
   // PROBLEM: we are repeating the same queries, but the results don't change that often.
 
