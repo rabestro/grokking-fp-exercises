@@ -105,28 +105,6 @@ object TravelGuideApp {
     execution.close()
   )
 
-  private def runVersion2() = { // handling resource release manually
-    def execQuery(connection: RDFConnection)(query: String): IO[List[QuerySolution]] = {
-      for {
-        execution <- createExecution(connection, query)
-        solutions <- IO.blocking(asScala(execution.execSelect()).toList) // orElse needed too
-        _ <- closeExecution(execution)
-      } yield solutions
-    }
-
-    val connection: RDFConnection = RDFConnectionRemote.create
-      .destination("https://query.wikidata.org/")
-      .queryEndpoint("sparql")
-      .build
-
-    val wikidata = getSparqlDataAccess(execQuery(connection))
-    println(Version2.travelGuide(wikidata, "Yosemite").unsafeRunSync())
-    connection.close()
-
-    // PROBLEM: this will not leak in happy-path, but may leak on errors (we need orElse(closeExecution), too)
-    // we need something better, we need Resource!
-  }
-
   // introduce Resource
   def execQuery(connection: RDFConnection)(query: String): IO[List[QuerySolution]] = {
     val executionResource: Resource[IO, QueryExecution] = Resource.make(createExecution(connection, query))(
