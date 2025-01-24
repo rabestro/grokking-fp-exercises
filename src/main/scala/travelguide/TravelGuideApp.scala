@@ -120,29 +120,6 @@ object TravelGuideApp {
       } yield attractions
     }
 
-    def configuringAFunction = { // currying discussion (configuring a function)
-      def findAttractions(
-                           connection: RDFConnection
-                         )(name: String, ordering: AttractionOrdering, limit: Int): IO[List[Attraction]] = ???
-
-      val connection: RDFConnection = null
-      val f: (String, AttractionOrdering, Int) => IO[List[Attraction]] = findAttractions(connection)
-      f // you should be able to use f now without knowing anything about the connection (which you should close() later)
-    }
-
-    def passingAQueryingBehavior = { // functions as values discussion (passing a querying behavior)
-      def findAttractions(execQuery: String => IO[List[QuerySolution]])(
-        name: String,
-        ordering: AttractionOrdering,
-        limit: Int
-      ): IO[List[Attraction]] = ???
-
-      def execQueryFunction(query: String): IO[List[QuerySolution]] = ???
-
-      val f: (String, AttractionOrdering, Int) => IO[List[Attraction]] = findAttractions(execQueryFunction)
-      f // you should be able to use f now without knowing anything about the connection (which you should close() later) or query execution
-    }
-
     /** @see [[WikidataDataAccess]] for a Wikidata Sparql endpoint implementation using Apache Jena
      *       and final version of all DataAccess functions
      */
@@ -153,29 +130,6 @@ object TravelGuideApp {
 
     // connection.close() // PROBLEM we are not able to close each connection used by the getConnection clients
     // and we can't pass connection directly because it's a mutable, stateful value
-  }
-
-  /** STEP 5: connecting the dots
-   */
-  // mostly IMPURE CODE, out of the functional core
-  private def runStep5 = {
-    def execQuery(connection: RDFConnection)(query: String): IO[List[QuerySolution]] = IO.blocking(
-      asScala(connection.query(QueryFactory.create(query)).execSelect()).toList
-    ) // it looks OK, but it's not and we'll see why
-
-    val connection: RDFConnection = RDFConnectionRemote.create
-      .destination("https://query.wikidata.org/")
-      .queryEndpoint("sparql")
-      .build // we will make it better, see STEP 7
-
-    val wikidata = getSparqlDataAccess(execQuery(connection))
-
-    // now we can execute our program using the real Wikidata data access!
-    AppRunner.runWithTiming(Version1.travelGuide(wikidata, "Yosemite"))
-    // PROBLEM with Version1: for a very popular attraction, like "Yosemite", the returned TravelGuide doesn't contain any pop culture subjects
-    // we only check the first result, even though there may be better choices and better locations with similar names
-
-    connection.close()
   }
 
   /** STEP 6: searching for the best travel guide
@@ -293,35 +247,6 @@ object TravelGuideApp {
     runWithTiming(dataAccessResource.use(dataAccess => Version2.travelGuide(dataAccess, "Yosemite")))
   }
 
-  // PROBLEM: we make all queries sequentially, but we can make parallel queries in two attractions
-
-  /** STEP 8: make it concurrent (and fast)
-   */
-  object Version3 {
-    // Coffee Break: making it concurrent
-    def travelGuide(data: DataAccess, attractionName: String): IO[Option[TravelGuide]] = {
-      for {
-        attractions <- data.findAttractions(attractionName, ByLocationPopulation, 3)
-        guides <- attractions
-          .map(attraction =>
-            List(
-              data.findArtistsFromLocation(attraction.location.id, 2),
-              data.findMoviesAboutLocation(attraction.location.id, 2)
-            ).parSequence.map(_.flatten).map(popCultureSubjects =>
-              TravelGuide(attraction, popCultureSubjects)
-            )
-          )
-          .parSequence
-      } yield guides.sortBy(guideScore).reverse.headOption
-    }
-  }
-
-  private def runVersion3 = {
-    runWithTiming(
-      dataAccessResource.use(dataAccess => Version3.travelGuide(dataAccess, "Yellowstone"))
-    ) // this will take a lot less time than Version2!
-  }
-
   // PROBLEM: we are repeating the same queries, but the results don't change that often.
 
   /** STEP 9: make it faster
@@ -348,9 +273,9 @@ object TravelGuideApp {
     connectionResource.use(connection => {
       val dataAccess = getSparqlDataAccess(execQuery(connection))
       for {
-        result1 <- Version3.travelGuide(dataAccess, "Yellowstone")
-        result2 <- Version3.travelGuide(dataAccess, "Yellowstone")
-        result3 <- Version3.travelGuide(dataAccess, "Yellowstone")
+        result1 <- AppVersion3.travelGuide(dataAccess, "Yellowstone")
+        result2 <- AppVersion3.travelGuide(dataAccess, "Yellowstone")
+        result3 <- AppVersion3.travelGuide(dataAccess, "Yellowstone")
       } yield result1.toList.appendedAll(result2).appendedAll(result3)
     }).unsafeRunSync()
 
@@ -360,9 +285,9 @@ object TravelGuideApp {
         for {
           cache <- Ref.of[IO, Map[String, List[QuerySolution]]](Map.empty)
           dataAccess = getSparqlDataAccess(cachedExecQuery(connection, cache)) // <- here is the main change
-          result1 <- Version3.travelGuide(dataAccess, "Yellowstone")
-          result2 <- Version3.travelGuide(dataAccess, "Yellowstone")
-          result3 <- Version3.travelGuide(dataAccess, "Yellowstone")
+          result1 <- AppVersion3.travelGuide(dataAccess, "Yellowstone")
+          result2 <- AppVersion3.travelGuide(dataAccess, "Yellowstone")
+          result3 <- AppVersion3.travelGuide(dataAccess, "Yellowstone")
         } yield result1.toList.appendedAll(result2).appendedAll(result3)
       )
     ) // the second and third execution will take a lot less time because all queries are cached!
@@ -380,9 +305,9 @@ object TravelGuideApp {
             getSparqlDataAccess(
               cachedExecQuery(connection, cache).map(_.timeout(30.seconds)) // note that we map over a functions result.
             ) // each query will fail after 30 seconds, releasing all the resources!
-          result1 <- Version3.travelGuide(cachedSparql, "Yellowstone")
-          result2 <- Version3.travelGuide(cachedSparql, "Yellowstone")
-          result3 <- Version3.travelGuide(cachedSparql, "Yellowstone")
+          result1 <- AppVersion3.travelGuide(cachedSparql, "Yellowstone")
+          result2 <- AppVersion3.travelGuide(cachedSparql, "Yellowstone")
+          result3 <- AppVersion3.travelGuide(cachedSparql, "Yellowstone")
         } yield result1.toList.appendedAll(result2).appendedAll(result3)
       )
     ) // the second and third execution will take a lot less time because all queries are cached!

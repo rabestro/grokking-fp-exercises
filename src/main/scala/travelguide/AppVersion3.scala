@@ -5,7 +5,6 @@ import cats.implicits.*
 import travelguide.BusinessDomain.TravelGuide
 import travelguide.TravelGuideApp.AttractionOrdering.ByLocationPopulation
 import travelguide.TravelGuideApp.{DataAccess, dataAccessResource, guideScore}
-import cats.effect.unsafe.implicits.global
 
 object AppVersion3:
   // Coffee Break: making it concurrent
@@ -24,10 +23,10 @@ object AppVersion3:
         .parSequence
     } yield guides.sortBy(guideScore).reverse.headOption
   }
-  
-  def main(args: Array[String]): Unit = {
-    AppRunner.runWithTiming(
-      dataAccessResource.use(dataAccess => travelGuide(dataAccess, "Yellowstone"))
-    )
-  }
 
+  def main(args: Array[String]): Unit =
+    AppRunner.runWithTiming(
+      dataAccessResource.use(
+        dataAccess => travelGuide(dataAccess, "Yellowstone")
+      )
+    )
