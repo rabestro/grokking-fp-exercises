@@ -5,15 +5,11 @@ import cats.effect.{IO, Ref, Resource}
 import org.apache.jena.query.{QueryExecution, QueryFactory, QuerySolution}
 import org.apache.jena.rdfconnection.{RDFConnection, RDFConnectionRemote}
 import travelguide.AppRunner.runWithTiming
-import travelguide.BusinessDomain.PopCultureSubject.{Artist, Movie}
-import travelguide.BusinessDomain.{Attraction, LocationId, TravelGuide}
 import travelguide.WikidataDataAccess.getSparqlDataAccess
 
 import scala.jdk.javaapi.CollectionConverters.asScala
 
 object TravelGuideApp {
-
-  import travelguide.dao.AttractionOrdering
 
   val connectionResource: Resource[IO, RDFConnection] = Resource.make(
     IO.blocking(
@@ -25,37 +21,6 @@ object TravelGuideApp {
   )(connection => IO.blocking(connection.close()))
   val dataAccessResource: Resource[IO, DataAccess] =
     connectionResource.map(connection => getSparqlDataAccess(execQuery(connection)))
-
-  // PROBLEM: it may not work, because we are leaking closable resources (in this case query executions)
-
-  /** STEP 6: searching for the best travel guide
-   * requirements:
-   * - 30 points for a description
-   * - 10 points for each artist and movie (max 40pts)
-   * - 1 point for each 100_000 followers (all artists combined, max 15pts)
-   * - 1 point for each 10_000_000 dollars in box-office totals (all movies combined, max 15pts)
-   */
-  def guideScore(guide: TravelGuide): Int = {
-    val descriptionScore = guide.attraction.description.map(_ => 30).getOrElse(0)
-    val quantityScore = Math.min(40, guide.subjects.size * 10)
-
-    val totalFollowers = guide.subjects
-      .map {
-        case Artist(_, followers) => followers
-        case _ => 0
-      }
-      .sum
-    val totalBoxOffice = guide.subjects
-      .map {
-        case Movie(_, boxOffice) => boxOffice
-        case _ => 0
-      }
-      .sum
-
-    val followersScore = Math.min(15, totalFollowers / 100_000)
-    val boxOfficeScore = Math.min(15, totalBoxOffice / 10_000_000)
-    descriptionScore + quantityScore + followersScore + boxOfficeScore
-  }
 
   def main(args: Array[String]): Unit = {
     runCachedVersion

@@ -119,5 +119,4 @@ object WikidataDataAccess {
     }
 
   }
-
 }

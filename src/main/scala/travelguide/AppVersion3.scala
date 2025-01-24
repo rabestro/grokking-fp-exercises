@@ -2,8 +2,8 @@ package travelguide
 
 import cats.effect.IO
 import cats.implicits.*
-import travelguide.BusinessDomain.TravelGuide
-import travelguide.TravelGuideApp.{DataAccess, dataAccessResource, guideScore}
+import travelguide.BusinessDomain.{TravelGuide, guideScore}
+import travelguide.TravelGuideApp.{DataAccess, dataAccessResource}
 import travelguide.dao.AttractionOrdering.ByLocationPopulation
 
 object AppVersion3:
