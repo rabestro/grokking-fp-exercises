@@ -1,8 +1,8 @@
-import Dependencies._
+import Dependencies.*
 
-ThisBuild / scalaVersion     := "3.5.2" // "2.13.15"
-ThisBuild / version          := "0.1.0-SNAPSHOT"
-ThisBuild / organization     := "com.example"
+ThisBuild / scalaVersion := "3.5.2" // "2.13.15"
+ThisBuild / version := "0.1.0-SNAPSHOT"
+ThisBuild / organization := "com.example"
 ThisBuild / organizationName := "example"
 
 
@@ -10,8 +10,13 @@ lazy val root = (project in file("."))
   .settings(
     name := "grokking-fp-exercises",
     libraryDependencies ++= Seq(
-      scalaTest % Test,
-      catsEffect, stream
+      catsEffect, stream,
+      "org.apache.jena" % "apache-jena-libs" % "5.3.0",
+      "org.apache.jena" % "jena-fuseki-main" % "5.3.0",
+      "org.slf4j" % "slf4j-nop" % "2.0.16",
+      "org.scalatest" %% "scalatest" % "3.2.19" % Test,
+      "org.scalatestplus" %% "scalacheck-1-16" % "3.2.14.0" % Test,
+
     )
   )
 
