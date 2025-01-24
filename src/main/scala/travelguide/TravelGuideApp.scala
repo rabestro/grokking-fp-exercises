@@ -15,13 +15,18 @@ object TravelGuideApp {
 
   import travelguide.dao.AttractionOrdering
 
-  trait DataAccess {
-    def findAttractions(name: String, ordering: AttractionOrdering, limit: Int): IO[List[Attraction]]
+  val connectionResource: Resource[IO, RDFConnection] = Resource.make(
+    IO.blocking(
+      RDFConnectionRemote.create
+        .destination("https://query.wikidata.org/")
+        .queryEndpoint("sparql")
+        .build
+    )
+  )(connection => IO.blocking(connection.close()))
+  val dataAccessResource: Resource[IO, DataAccess] =
+    connectionResource.map(connection => getSparqlDataAccess(execQuery(connection)))
 
-    def findArtistsFromLocation(locationId: LocationId, limit: Int): IO[List[Artist]]
-
-    def findMoviesAboutLocation(locationId: LocationId, limit: Int): IO[List[Movie]]
-  }
+  // PROBLEM: it may not work, because we are leaking closable resources (in this case query executions)
 
   /** STEP 6: searching for the best travel guide
    * requirements:
@@ -52,57 +57,8 @@ object TravelGuideApp {
     descriptionScore + quantityScore + followersScore + boxOfficeScore
   }
 
-  // PROBLEM: it may not work, because we are leaking closable resources (in this case query executions)
-
-  /** STEP 7: handle resource leaks (query execution and connection)
-   */
-  def createExecution(connection: RDFConnection, query: String): IO[QueryExecution] = IO.blocking(
-    connection.query(QueryFactory.create(query))
-  )
-
-  def closeExecution(execution: QueryExecution): IO[Unit] = IO.blocking(
-    execution.close()
-  )
-
-  // introduce Resource
-  def execQuery(connection: RDFConnection)(query: String): IO[List[QuerySolution]] = {
-    val executionResource: Resource[IO, QueryExecution] = Resource.make(createExecution(connection, query))(
-      closeExecution
-    ) // or Resource.fromAutoCloseable(createExecution)
-
-    executionResource.use(execution => IO.blocking(asScala(execution.execSelect()).toList))
-  }
-
-  val connectionResource: Resource[IO, RDFConnection] = Resource.make(
-    IO.blocking(
-      RDFConnectionRemote.create
-        .destination("https://query.wikidata.org/")
-        .queryEndpoint("sparql")
-        .build
-    )
-  )(connection => IO.blocking(connection.close()))
-
-  val dataAccessResource: Resource[IO, DataAccess] =
-    connectionResource.map(connection => getSparqlDataAccess(execQuery(connection)))
-
-  // PROBLEM: we are repeating the same queries, but the results don't change that often.
-
-  /** STEP 9: make it faster
-   * we don't have to execute queries, we can cache them locally
-   */
-  def cachedExecQuery(connection: RDFConnection, cache: Ref[IO, Map[String, List[QuerySolution]]])(
-    query: String
-  ): IO[List[QuerySolution]] = {
-    for {
-      cachedQueries <- cache.get
-      solutions <- cachedQueries.get(query) match {
-        case Some(cachedSolutions) => IO.pure(cachedSolutions)
-        case None => for {
-          realSolutions <- execQuery(connection)(query)
-          _ <- cache.update(_.updated(query, realSolutions))
-        } yield realSolutions
-      }
-    } yield solutions
+  def main(args: Array[String]): Unit = {
+    runCachedVersion
   }
 
   private def runCachedVersion = {
@@ -131,8 +87,44 @@ object TravelGuideApp {
     ) // the second and third execution will take a lot less time because all queries are cached!
   }
 
-
-  def main(args: Array[String]): Unit = {
-    runCachedVersion
+  /** STEP 9: make it faster
+   * we don't have to execute queries, we can cache them locally
+   */
+  def cachedExecQuery(connection: RDFConnection, cache: Ref[IO, Map[String, List[QuerySolution]]])(
+    query: String
+  ): IO[List[QuerySolution]] = {
+    for {
+      cachedQueries <- cache.get
+      solutions <- cachedQueries.get(query) match {
+        case Some(cachedSolutions) => IO.pure(cachedSolutions)
+        case None => for {
+          realSolutions <- execQuery(connection)(query)
+          _ <- cache.update(_.updated(query, realSolutions))
+        } yield realSolutions
+      }
+    } yield solutions
   }
+
+  // introduce Resource
+  def execQuery(connection: RDFConnection)(query: String): IO[List[QuerySolution]] = {
+    val executionResource: Resource[IO, QueryExecution] = Resource.make(createExecution(connection, query))(
+      closeExecution
+    ) // or Resource.fromAutoCloseable(createExecution)
+
+    executionResource.use(execution => IO.blocking(asScala(execution.execSelect()).toList))
+  }
+
+  // PROBLEM: we are repeating the same queries, but the results don't change that often.
+
+  /** STEP 7: handle resource leaks (query execution and connection)
+   */
+  def createExecution(connection: RDFConnection, query: String): IO[QueryExecution] = IO.blocking(
+    connection.query(QueryFactory.create(query))
+  )
+
+  def closeExecution(execution: QueryExecution): IO[Unit] = IO.blocking(
+    execution.close()
+  )
+
+  trait DataAccess extends dao.DataAccess
 }

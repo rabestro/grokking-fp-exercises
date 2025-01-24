@@ -7,6 +7,13 @@ import travelguide.TravelGuideApp.{DataAccess, dataAccessResource, guideScore}
 import travelguide.dao.AttractionOrdering.ByLocationPopulation
 
 object AppVersion3:
+  def main(args: Array[String]): Unit =
+    AppRunner.runWithTiming(
+      dataAccessResource.use(
+        dataAccess => travelGuide(dataAccess, "Yellowstone")
+      )
+    )
+
   // Coffee Break: making it concurrent
   def travelGuide(data: DataAccess, attractionName: String): IO[Option[TravelGuide]] = {
     for {
@@ -23,10 +30,3 @@ object AppVersion3:
         .parSequence
     } yield guides.sortBy(guideScore).reverse.headOption
   }
-
-  def main(args: Array[String]): Unit =
-    AppRunner.runWithTiming(
-      dataAccessResource.use(
-        dataAccess => travelGuide(dataAccess, "Yellowstone")
-      )
-    )
