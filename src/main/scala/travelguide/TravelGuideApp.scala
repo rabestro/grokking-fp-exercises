@@ -31,14 +31,6 @@ object TravelGuideApp {
     def findMoviesAboutLocation(locationId: LocationId, limit: Int): IO[List[Movie]]
   }
 
-  object DataAccessAlternative { // alternatively DataAccess can be modeled as a product type:
-    case class DataAccess( // NOTE: WE DON'T USE IT IN THE BOOK, we use the type above
-                           findAttractions: (String, AttractionOrdering, Int) => IO[List[Attraction]],
-                           findArtistsFromLocation: (LocationId, Int) => IO[List[Artist]],
-                           findMoviesAboutLocation: (LocationId, Int) => IO[List[Movie]]
-                         )
-  }
-
   /** STEP 3: first version of a TravelGuide finder
    */
   object Version1 {
@@ -197,16 +189,16 @@ object TravelGuideApp {
     val quantityScore = Math.min(40, guide.subjects.size * 10)
 
     val totalFollowers = guide.subjects
-      .map(_ match {
+      .map {
         case Artist(_, followers) => followers
         case _ => 0
-      })
+      }
       .sum
     val totalBoxOffice = guide.subjects
-      .map(_ match {
+      .map {
         case Movie(_, boxOffice) => boxOffice
         case _ => 0
-      })
+      }
       .sum
 
     val followersScore = Math.min(15, totalFollowers / 100_000)
@@ -241,7 +233,7 @@ object TravelGuideApp {
     execution.close()
   )
 
-  private def runVersion2 = { // handling resource release manually
+  private def runVersion2() = { // handling resource release manually
     def execQuery(connection: RDFConnection)(query: String): IO[List[QuerySolution]] = {
       for {
         execution <- createExecution(connection, query)
