@@ -5,6 +5,7 @@ import cats.effect.{IO, Ref, Resource}
 import cats.implicits.*
 import org.apache.jena.query.{QueryExecution, QueryFactory, QuerySolution}
 import org.apache.jena.rdfconnection.{RDFConnection, RDFConnectionRemote}
+import travelguide.AppRunner.unsafeRunTimedIO
 import travelguide.BusinessDomain.PopCultureSubject.{Artist, Movie}
 import travelguide.BusinessDomain.{Attraction, Location, LocationId, TravelGuide}
 import travelguide.WikidataDataAccess.getSparqlDataAccess
@@ -170,7 +171,7 @@ object TravelGuideApp {
     val wikidata = getSparqlDataAccess(execQuery(connection))
 
     // now we can execute our program using the real Wikidata data access!
-    unsafeRunTimedIO(Version1.travelGuide(wikidata, "Yosemite"))
+    AppRunner.unsafeRunTimedIO(Version1.travelGuide(wikidata, "Yosemite"))
     // PROBLEM with Version1: for a very popular attraction, like "Yosemite", the returned TravelGuide doesn't contain any pop culture subjects
     // we only check the first result, even though there may be better choices and better locations with similar names
 
@@ -371,7 +372,7 @@ object TravelGuideApp {
    * let's fail fast if requests take too long (timeout 30s)
    */
   private def runCachedVersionWithTimeouts = {
-    unsafeRunTimedIO(
+    AppRunner.unsafeRunTimedIO(
       connectionResource.use(connection =>
         for {
           cache <- Ref.of[IO, Map[String, List[QuerySolution]]](Map.empty)
@@ -389,16 +390,5 @@ object TravelGuideApp {
 
   def main(args: Array[String]): Unit = {
     runCachedVersion
-  }
-
-  /**
-   * Helper function that runs the given IO[A], times its execution, prints it, and returns it
-   */
-  private def unsafeRunTimedIO[A](io: IO[A]): A = {
-    val start = System.currentTimeMillis()
-    val result = io.unsafeRunSync()
-    val end = System.currentTimeMillis()
-    println(s"$result (took ${end - start}ms)")
-    result
   }
 }
