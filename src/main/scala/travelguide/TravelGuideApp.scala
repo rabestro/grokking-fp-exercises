@@ -2,7 +2,6 @@ package travelguide
 
 import cats.effect.unsafe.implicits.global
 import cats.effect.{IO, Ref, Resource}
-import cats.implicits.*
 import org.apache.jena.query.{QueryExecution, QueryFactory, QuerySolution}
 import org.apache.jena.rdfconnection.{RDFConnection, RDFConnectionRemote}
 import travelguide.AppRunner.runWithTiming
@@ -10,19 +9,11 @@ import travelguide.BusinessDomain.PopCultureSubject.{Artist, Movie}
 import travelguide.BusinessDomain.{Attraction, LocationId, TravelGuide}
 import travelguide.WikidataDataAccess.getSparqlDataAccess
 
-import scala.concurrent.duration.*
 import scala.jdk.javaapi.CollectionConverters.asScala
 
 object TravelGuideApp {
 
-  /** STEP 2
-   * DATA ACCESS (just an interface providing pure functions, implementation completely separated)
-   */
-  enum AttractionOrdering {
-    case ByName
-    case ByLocationPopulation
-  }
-  import AttractionOrdering.*
+  import travelguide.dao.AttractionOrdering
 
   trait DataAccess {
     def findAttractions(name: String, ordering: AttractionOrdering, limit: Int): IO[List[Attraction]]
@@ -140,25 +131,6 @@ object TravelGuideApp {
     ) // the second and third execution will take a lot less time because all queries are cached!
   }
 
-  /** BONUS: make it resilient
-   * let's fail fast if requests take too long (timeout 30s)
-   */
-  private def runCachedVersionWithTimeouts = {
-    AppRunner.runWithTiming(
-      connectionResource.use(connection =>
-        for {
-          cache <- Ref.of[IO, Map[String, List[QuerySolution]]](Map.empty)
-          cachedSparql =
-            getSparqlDataAccess(
-              cachedExecQuery(connection, cache).map(_.timeout(30.seconds)) // note that we map over a functions result.
-            ) // each query will fail after 30 seconds, releasing all the resources!
-          result1 <- AppVersion3.travelGuide(cachedSparql, "Yellowstone")
-          result2 <- AppVersion3.travelGuide(cachedSparql, "Yellowstone")
-          result3 <- AppVersion3.travelGuide(cachedSparql, "Yellowstone")
-        } yield result1.toList.appendedAll(result2).appendedAll(result3)
-      )
-    ) // the second and third execution will take a lot less time because all queries are cached!
-  }
 
   def main(args: Array[String]): Unit = {
     runCachedVersion

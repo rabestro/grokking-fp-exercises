@@ -1,11 +1,12 @@
 package travelguide
 
 import cats.effect.IO
-import TravelGuideApp.*
-import TravelGuideApp.AttractionOrdering.*
 import org.apache.jena.query.QuerySolution
 import travelguide.BusinessDomain.PopCultureSubject.{Artist, Movie}
 import travelguide.BusinessDomain.{Attraction, Location, LocationId}
+import travelguide.TravelGuideApp.*
+import travelguide.dao.AttractionOrdering
+import travelguide.dao.AttractionOrdering.{ByLocationPopulation, ByName}
 
 object WikidataDataAccess {
 

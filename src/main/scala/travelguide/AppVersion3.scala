@@ -3,8 +3,8 @@ package travelguide
 import cats.effect.IO
 import cats.implicits.*
 import travelguide.BusinessDomain.TravelGuide
-import travelguide.TravelGuideApp.AttractionOrdering.ByLocationPopulation
 import travelguide.TravelGuideApp.{DataAccess, dataAccessResource, guideScore}
+import travelguide.dao.AttractionOrdering.ByLocationPopulation
 
 object AppVersion3:
   // Coffee Break: making it concurrent
