@@ -11,7 +11,7 @@ import scala.jdk.javaapi.CollectionConverters.asScala
 
 object TravelGuideApp {
 
-  val connectionResource: Resource[IO, RDFConnection] = Resource.make(
+  private val connectionResource: Resource[IO, RDFConnection] = Resource.make(
     IO.blocking(
       RDFConnectionRemote.create
         .destination("https://query.wikidata.org/")
@@ -55,7 +55,7 @@ object TravelGuideApp {
   /** STEP 9: make it faster
    * we don't have to execute queries, we can cache them locally
    */
-  def cachedExecQuery(connection: RDFConnection, cache: Ref[IO, Map[String, List[QuerySolution]]])(
+  private def cachedExecQuery(connection: RDFConnection, cache: Ref[IO, Map[String, List[QuerySolution]]])(
     query: String
   ): IO[List[QuerySolution]] = {
     for {
